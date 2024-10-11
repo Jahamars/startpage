@@ -1,2 +1,4 @@
 # startpage
-minimalistic start pages 
+Minimalistic start pages 
+
+![Gruvbox](https://raw.githubusercontent.com/Jahamars/startpage/refs/heads/main/gruvbox/gruvbox.png)
