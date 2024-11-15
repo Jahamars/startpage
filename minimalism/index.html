@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>minimalism</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <main>
+        <h1>  </h1>
+        <div class="search-box">
+                    <span class="prompt">❯</span>
+                    <input type="text" placeholder="rm -rf " onkeypress="runSearch(event)">
+                </div>
+        <nav>
+            <ul>
+                <li><a href="https://quran.com/">Quran</a></li>
+                <li><a href="https://codepen.io/">codepen</a></li>
+                <li><a href="https://github.com">github</a></li>
+                <li><a href="https://chat.openai.com/">gpt</a></li>
+                <li><a href="https://www.reddit.com">reddit</a></li>
+                <!-- <li><a href="https://vk.com/">vk</a></li> -->
+                <!-- <li><a href="https://ravesli.com/uroki-cpp/">ravesli</a></li> -->
+                <!-- <li><a href="https://mail.yandex.ru/">ymail</a></li> -->
+                <!-- <li><a href="https://web.telegram.org/k/">telegram</a></li> -->
+            </ul>
+        </nav>
+    </main>
+    <script>
+            function runSearch(event) {
+                if (event.key === "Enter") {
+                    const query = event.target.value.trim();
+                    if (query) {
+                        window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
+                    }
+                }
+            }
+        </script>
+</body>
+</html>
