@@ -6,3 +6,6 @@
 
 ### Catppuccin
 ![Catppuccin](https://raw.githubusercontent.com/Jahamars/startpage/refs/heads/main/catppuccin/catppuccin.png)
+
+### Minimalism
+![Minimalism](https://raw.githubusercontent.com/Jahamars/startpage/refs/heads/main/minimalism/minimalism.png)
