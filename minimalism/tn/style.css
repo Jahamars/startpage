@@ -1,0 +1,95 @@
+
+body {
+    font-family: 'Iosevka Nerd Font Mono', monospace;
+    background-color: #1a1b26; /* Tokyo Night Dark background */
+    color: #c0caf5; /* Tokyo Night Dark foreground */
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+main {
+    text-align: center;
+    padding: 20px;
+    background-color: transparent;
+}
+
+h1 {
+    font-size: 24pt;
+    color: #bb9af7; /* Tokyo Night Dark purple */
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+nav ul {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr); /* 5 столбцов */
+    gap: 15px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    justify-items: center;
+}
+
+nav li {
+    text-align: center;
+}
+
+nav a {
+    color: #c0caf5; /* Tokyo Night Dark foreground */
+    text-decoration: none;
+    font-size: 14pt;
+    padding: 5px 10px;
+    border: 2px solid transparent;
+    border-radius: 5px;
+    transition: all 0.3s;
+}
+
+nav a:hover {
+    color: #1a1b26; /* Tokyo Night Dark background */
+    background-color: #7aa2f7; /* Tokyo Night Dark blue */
+    border-color: #7dcfff; /* Tokyo Night Dark cyan */
+}
+
+/* Минималистичная строка поиска */
+.search-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    border: 1px solid #7aa2f7; /* Tokyo Night Dark blue */
+    padding: 13px;
+    border-radius: 5px;
+    width: 100%;
+    max-width: 999px;
+    background-color: #16161e; /* Tokyo Night Dark soft background */
+}
+
+.search-box .prompt {
+    color:  #7aa2f7; /* Tokyo Night Dark blue */
+    font-size: 16pt;
+    margin-right: 10px;
+}
+
+.search-box input {
+    border: none;
+    outline: none;
+    background: none;
+    color: #c0caf5; /* Tokyo Night Dark foreground */
+    font-family: 'Iosevka Nerd Font Mono', monospace;
+    font-size: 14pt;
+    width: 100%;
+}
+
+.search-box input::placeholder {
+    color: #565f89; /* Tokyo Night Dark gray */
+    opacity: 0.7;
+}
+
+.search-box input:focus {
+    outline: none;
+    color: #9aa5ce; /* Tokyo Night Dark soft foreground */
+}
