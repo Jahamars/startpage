@@ -13,52 +13,27 @@
   <aside id="settings-panel" class="hidden">
     <section class="group">
       <h2>Theme</h2>
-      <label><input type="radio" name="theme" value="gruvbox-dark">Gruvbox Dark</label>
-      <label><input type="radio" name="theme" value="gruvbox-light">Gruvbox Light</label>
-      <label><input type="radio" name="theme" value="nord-dark">Nord Dark</label>
-      <label><input type="radio" name="theme" value="nord-light">Nord Light</label>
+      <label><input type="radio" name="theme" value="gruvbox-dark">gruvbox Dark</label>
+      <label><input type="radio" name="theme" value="gruvbox-light">gruvbox Light</label>
+      <label><input type="radio" name="theme" value="nord-dark">nord Dark</label>
+      <label><input type="radio" name="theme" value="nord-light">nord Light</label>
     </section>
 
     <section class="group">
       <h2>Search engine</h2>
-      <label><input type="radio" name="engine" value="google">Google</label>
-      <label><input type="radio" name="engine" value="duckduckgo">DuckDuckGo</label>
-      <label><input type="radio" name="engine" value="yandex">Yandex</label>
-      <label><input type="radio" name="engine" value="bing">Bing</label>
-      <label><input type="radio" name="engine" value="brave">Brave</label>
-      <label><input type="radio" name="engine" value="startpage">Startpage</label>
+      <label><input type="radio" name="engine" value="google">google</label>
+      <label><input type="radio" name="engine" value="duckduckgo">duckduckgo</label>
+      <label><input type="radio" name="engine" value="yandex">yandex</label>
+      <label><input type="radio" name="engine" value="bing">bing</label>
+      <label><input type="radio" name="engine" value="brave">brave</label>
+      <label><input type="radio" name="engine" value="startpage">startpage</label>
     </section>
 
     <section class="group">
       <h2>Blocks</h2>
-      <label><input type="checkbox" data-block="search">Search bar</label>
-      <label><input type="checkbox" data-block="links">Quick links</label>
-      <label><input type="checkbox" data-block="info">Info panel</label>
-    </section>
-
-    <section class="group">
-      <h2>Info rows</h2>
-      <label><input type="checkbox" data-row="lang">System language</label>
-      <label><input type="checkbox" data-row="tz">Timezone</label>
-      <label><input type="checkbox" data-row="ua">Browser / OS</label>
-      <label><input type="checkbox" data-row="dnt">Do Not Track</label>
-      <label><input type="checkbox" data-row="gpc">Global Privacy Control</label>
-      <label><input type="checkbox" data-row="cookies">Cookie enabled</label>
-      <label><input type="checkbox" data-row="js">JavaScript enabled</label>
-      <label><input type="checkbox" data-row="https">Secure context (HTTPS/extension)</label>
-      <label><input type="checkbox" data-row="crossiso">Cross-origin isolated</label>
-      <label><input type="checkbox" data-row="webrtc">WebRTC API</label>
-      <label><input type="checkbox" data-row="touch">Touch support</label>
-      <label><input type="checkbox" data-row="cpu">CPU threads</label>
-      <label><input type="checkbox" data-row="memory">Device memory</label>
-      <label><input type="checkbox" data-row="screen">Screen</label>
-      <label><input type="checkbox" data-row="depth">Color depth</label>
-      <label><input type="checkbox" data-row="online">Network online status</label>
-      <label><input type="checkbox" data-row="conn">Connection type / save-data</label>
-      <label><input type="checkbox" data-row="langlist">Languages list</label>
-      <label><input type="checkbox" data-row="platform">Platform</label>
-      <label><input type="checkbox" data-row="vendor">Vendor</label>
-      <label><input type="checkbox" data-row="pdf">Built-in PDF viewer</label>
+      <label><input type="checkbox" data-block="search">search bar</label>
+      <label><input type="checkbox" data-block="links">quick links</label>
+      <label><input type="checkbox" data-block="ip">ip info</label>
     </section>
 
     <section class="group">
@@ -67,37 +42,27 @@
       <div class="add">
         <input id="new-name" type="text" placeholder="Name">
         <input id="new-url" type="text" placeholder="https://...">
-        <button id="add-link" type="button">Add</button>
+        <button id="add-link" type="button">add</button>
       </div>
     </section>
   </aside>
 
   <main id="app">
-    <section id="search-block" class="search"><span>❯</span><input id="search-input" type="text" placeholder="search..." autofocus></section>
-    <nav id="links-block"><ul id="links-list"></ul></nav>
+    <section id="search-block" class="search">
+      <span>❯</span>
+      <input id="search-input" type="text" placeholder="search..." autofocus>
+    </section>
 
-    <section id="info-block" class="info-grid">
-      <article class="cell" data-row-id="lang"><small>System language</small><strong id="v-lang"></strong></article>
-      <article class="cell" data-row-id="tz"><small>Timezone</small><strong id="v-tz"></strong></article>
-      <article class="cell" data-row-id="ua"><small>Browser / OS</small><strong id="v-ua"></strong></article>
-      <article class="cell" data-row-id="dnt"><small>Do Not Track</small><strong id="v-dnt"></strong></article>
-      <article class="cell" data-row-id="gpc"><small>Global Privacy Control</small><strong id="v-gpc"></strong></article>
-      <article class="cell" data-row-id="cookies"><small>Cookie enabled</small><strong id="v-cookies"></strong></article>
-      <article class="cell" data-row-id="js"><small>JavaScript</small><strong id="v-js"></strong></article>
-      <article class="cell" data-row-id="https"><small>Secure context</small><strong id="v-https"></strong></article>
-      <article class="cell" data-row-id="crossiso"><small>Cross-origin isolated</small><strong id="v-crossiso"></strong></article>
-      <article class="cell" data-row-id="webrtc"><small>WebRTC API</small><strong id="v-webrtc"></strong></article>
-      <article class="cell" data-row-id="touch"><small>Touch support</small><strong id="v-touch"></strong></article>
-      <article class="cell" data-row-id="cpu"><small>CPU threads</small><strong id="v-cpu"></strong></article>
-      <article class="cell" data-row-id="memory"><small>Device memory (GB)</small><strong id="v-memory"></strong></article>
-      <article class="cell" data-row-id="screen"><small>Screen</small><strong id="v-screen"></strong></article>
-      <article class="cell" data-row-id="depth"><small>Color depth</small><strong id="v-depth"></strong></article>
-      <article class="cell" data-row-id="online"><small>Online status</small><strong id="v-online"></strong></article>
-      <article class="cell" data-row-id="conn"><small>Connection / save-data</small><strong id="v-conn"></strong></article>
-      <article class="cell" data-row-id="langlist"><small>Languages list</small><strong id="v-langlist"></strong></article>
-      <article class="cell" data-row-id="platform"><small>Platform</small><strong id="v-platform"></strong></article>
-      <article class="cell" data-row-id="vendor"><small>Vendor</small><strong id="v-vendor"></strong></article>
-      <article class="cell" data-row-id="pdf"><small>PDF viewer</small><strong id="v-pdf"></strong></article>
+    <nav id="links-block">
+      <ul id="links-list"></ul>
+    </nav>
+
+    <section id="ip-block">
+      <div class="ip-header">
+        <span class="ip-title">ip info</span>
+        <button id="ip-check-btn">check</button>
+      </div>
+      <pre id="ip-output" class="ip-output"></pre>
     </section>
   </main>
 

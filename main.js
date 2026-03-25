@@ -1,53 +1,53 @@
 (() => {
-  const K = { CFG: 'sp_cfg_v6', LINKS: 'sp_links_v3' };
+  const K = { CFG: 'sp_cfg_v8', LINKS: 'sp_links_v4' };
+
   const ENGINES = {
-    google: 'https://www.google.com/search?q=',
+    google:     'https://www.google.com/search?q=',
     duckduckgo: 'https://duckduckgo.com/?q=',
-    yandex: 'https://yandex.com/search/?text=',
-    bing: 'https://www.bing.com/search?q=',
-    brave: 'https://search.brave.com/search?q=',
-    startpage: 'https://www.startpage.com/do/search?q='
+    yandex:     'https://yandex.com/search/?text=',
+    bing:       'https://www.bing.com/search?q=',
+    brave:      'https://search.brave.com/search?q=',
+    startpage:  'https://www.startpage.com/do/search?q='
   };
 
-  const ROWS = ['lang','tz','ua','dnt','gpc','cookies','js','https','crossiso','webrtc','touch','cpu','memory','screen','depth','online','conn','langlist','platform','vendor','pdf'];
-
   const DEF = {
-    theme: 'gruvbox-dark',
+    theme:  'gruvbox-dark',
     engine: 'google',
-    blocks: { search: true, links: true, info: true },
-    rows: Object.fromEntries(ROWS.map(k => [k, true]))
+    blocks: { search: true, links: true, ip: true }
   };
 
   const DEF_LINKS = [
-    { id: id(), n: 'claude', u: 'https://claude.ai/new', e: 1 },
-    { id: id(), n: 'github', u: 'https://github.com', e: 1 },
-    { id: id(), n: 'reddit', u: 'https://www.reddit.com', e: 1 },
+    { id: id(), n: 'claude',      u: 'https://claude.ai/new',  e: 1 },
+    { id: id(), n: 'github',      u: 'https://github.com',      e: 1 },
+    { id: id(), n: 'reddit',      u: 'https://reddit.com',      e: 1 },
     { id: id(), n: 'distrowatch', u: 'https://distrowatch.com', e: 1 },
-    { id: id(), n: 'x.com', u: 'https://x.com/', e: 1 }
+    { id: id(), n: 'x',           u: 'https://x.com',           e: 1 }
   ];
 
-  const s = hydrate();
+  const s  = hydrate();
   const el = {};
+  let   ipInited = false;
 
   document.addEventListener('DOMContentLoaded', () => {
-    map();
+    mapEls();
     bind();
     renderAll();
     if (s.blocks.search) focusSearch();
+    if (s.blocks.ip) initIp();
   });
 
-  function map() {
-    el.btn = document.getElementById('settings-btn');
-    el.panel = document.getElementById('settings-panel');
+  function mapEls() {
+    el.btn         = document.getElementById('settings-btn');
+    el.panel       = document.getElementById('settings-panel');
     el.searchBlock = document.getElementById('search-block');
     el.searchInput = document.getElementById('search-input');
-    el.linksBlock = document.getElementById('links-block');
-    el.linksList = document.getElementById('links-list');
-    el.infoBlock = document.getElementById('info-block');
-    el.editorList = document.getElementById('editor-list');
-    el.newName = document.getElementById('new-name');
-    el.newUrl = document.getElementById('new-url');
-    el.addBtn = document.getElementById('add-link');
+    el.linksBlock  = document.getElementById('links-block');
+    el.linksList   = document.getElementById('links-list');
+    el.ipBlock     = document.getElementById('ip-block');
+    el.editorList  = document.getElementById('editor-list');
+    el.newName     = document.getElementById('new-name');
+    el.newUrl      = document.getElementById('new-url');
+    el.addBtn      = document.getElementById('add-link');
   }
 
   function bind() {
@@ -70,29 +70,26 @@
 
     el.addBtn.addEventListener('click', addLink);
     el.newUrl.addEventListener('keydown', e => e.key === 'Enter' && addLink());
-
-    window.addEventListener('online', renderInfo);
-    window.addEventListener('offline', renderInfo);
   }
 
   function onPanelChange(e) {
     const t = e.target;
     if (!(t instanceof HTMLInputElement)) return;
 
-    if (t.name === 'theme') s.theme = t.value;
+    if      (t.name === 'theme')  s.theme = t.value;
     else if (t.name === 'engine') s.engine = t.value;
-    else if (t.dataset.block) s.blocks[t.dataset.block] = t.checked;
-    else if (t.dataset.row) s.rows[t.dataset.row] = t.checked;
-    else if (t.dataset.eid) editLinkField(t);
+    else if (t.dataset.block)     s.blocks[t.dataset.block] = t.checked;
+    else if (t.dataset.eid)       updateLinkField(t);
 
     persist();
     renderAll();
+    if (s.blocks.ip && !ipInited) initIp();
   }
 
   function onPanelClick(e) {
-    const del = e.target.closest('button[data-del]');
-    if (!del) return;
-    s.links = s.links.filter(x => x.id !== del.dataset.del);
+    const btn = e.target.closest('button[data-del]');
+    if (!btn) return;
+    s.links = s.links.filter(x => x.id !== btn.dataset.del);
     persist();
     renderLinks();
     renderEditor();
@@ -104,49 +101,45 @@
     if (!u) return;
     s.links.push({ id: id(), n, u, e: 1 });
     el.newName.value = '';
-    el.newUrl.value = '';
+    el.newUrl.value  = '';
     persist();
     renderLinks();
     renderEditor();
   }
 
-  function editLinkField(input) {
-    const x = s.links.find(v => v.id === input.dataset.eid);
-    if (!x) return;
+  function updateLinkField(input) {
+    const item = s.links.find(x => x.id === input.dataset.eid);
+    if (!item) return;
     const f = input.dataset.f;
-    if (f === 'e') x.e = input.checked ? 1 : 0;
-    if (f === 'n') x.n = input.value.trim() || 'link';
+    if (f === 'e') item.e = input.checked ? 1 : 0;
+    if (f === 'n') item.n = input.value.trim() || 'link';
     if (f === 'u') {
-      const nu = normalizeUrl(input.value.trim());
-      if (nu) x.u = nu;
-      input.value = x.u;
+      const u = normalizeUrl(input.value.trim());
+      if (u) item.u = u;
+      input.value = item.u;
     }
   }
 
   function renderAll() {
     document.documentElement.dataset.theme = s.theme;
     syncControls();
+    applyBlocks();
     renderLinks();
     renderEditor();
-    renderInfo();
-    applyBlocks();
   }
 
   function syncControls() {
-    qSet(`input[name="theme"][value="${s.theme}"]`, true);
-    qSet(`input[name="engine"][value="${s.engine}"]`, true);
-
-    qSet('input[data-block="search"]', !!s.blocks.search);
-    qSet('input[data-block="links"]', !!s.blocks.links);
-    qSet('input[data-block="info"]', !!s.blocks.info);
-
-    for (const key of ROWS) qSet(`input[data-row="${key}"]`, !!s.rows[key]);
+    setChecked(`input[name="theme"][value="${s.theme}"]`,   true);
+    setChecked(`input[name="engine"][value="${s.engine}"]`, true);
+    setChecked('input[data-block="search"]', !!s.blocks.search);
+    setChecked('input[data-block="links"]',  !!s.blocks.links);
+    setChecked('input[data-block="ip"]',     !!s.blocks.ip);
   }
 
   function applyBlocks() {
     el.searchBlock.style.display = s.blocks.search ? '' : 'none';
-    el.linksBlock.style.display = s.blocks.links ? '' : 'none';
-    el.infoBlock.style.display = s.blocks.info ? '' : 'none';
+    el.linksBlock.style.display  = s.blocks.links  ? '' : 'none';
+    el.ipBlock.style.display     = s.blocks.ip     ? '' : 'none';
   }
 
   function renderLinks() {
@@ -156,14 +149,13 @@
       el.linksList.textContent = '';
       return;
     }
-
     const frag = document.createDocumentFragment();
     for (const x of arr) {
       const li = document.createElement('li');
-      const a = document.createElement('a');
-      a.href = x.u;
-      a.textContent = x.n || x.u;
-      a.rel = 'noopener noreferrer';
+      const a  = document.createElement('a');
+      a.href        = x.u;
+      a.textContent = x.n;
+      a.rel         = 'noopener noreferrer';
       li.appendChild(a);
       frag.appendChild(li);
     }
@@ -185,46 +177,81 @@
     el.editorList.replaceChildren(frag);
   }
 
-  function renderInfo() {
-    const nav = navigator;
-    const conn = nav.connection || nav.mozConnection || nav.webkitConnection || null;
 
-    set('v-lang', nav.language || 'Unknown');
-    set('v-tz', Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown');
-    set('v-ua', ua());
-    state('v-dnt', dntEnabled() ? 'Enabled' : 'Disabled', dntEnabled() ? 'ok' : 'warn');
-
-    if (nav.globalPrivacyControl === undefined) state('v-gpc', 'Unsupported', 'dim');
-    else state('v-gpc', nav.globalPrivacyControl ? 'Enabled' : 'Disabled', nav.globalPrivacyControl ? 'ok' : 'warn');
-
-    state('v-cookies', nav.cookieEnabled ? 'Enabled' : 'Disabled', nav.cookieEnabled ? 'ok' : 'warn');
-    state('v-js', 'Enabled', 'ok');
-    state('v-https', window.isSecureContext ? 'Yes' : 'No', window.isSecureContext ? 'ok' : 'warn');
-    state('v-crossiso', window.crossOriginIsolated ? 'Yes' : 'No', window.crossOriginIsolated ? 'ok' : 'dim');
-    state('v-webrtc', typeof window.RTCPeerConnection !== 'undefined' ? 'Available' : 'Unavailable', typeof window.RTCPeerConnection !== 'undefined' ? 'ok' : 'warn');
-    state('v-touch', nav.maxTouchPoints > 0 ? `Yes (${nav.maxTouchPoints})` : 'No', nav.maxTouchPoints > 0 ? 'ok' : 'dim');
-    set('v-cpu', typeof nav.hardwareConcurrency === 'number' ? String(nav.hardwareConcurrency) : 'Unknown');
-    set('v-memory', typeof nav.deviceMemory === 'number' ? String(nav.deviceMemory) : 'Unknown');
-    set('v-screen', `${screen.width}×${screen.height}`);
-    set('v-depth', `${screen.colorDepth} / ${screen.pixelDepth}`);
-    state('v-online', nav.onLine ? 'Online' : 'Offline', nav.onLine ? 'ok' : 'warn');
-    set('v-conn', conn ? `${conn.effectiveType || 'unknown'}, downlink:${conn.downlink ?? 'n/a'}, rtt:${conn.rtt ?? 'n/a'}, saveData:${conn.saveData ? 'on' : 'off'}` : 'Unsupported');
-    set('v-langlist', Array.isArray(nav.languages) ? nav.languages.join(', ') : 'Unknown');
-    set('v-platform', nav.platform || 'Unknown');
-    set('v-vendor', nav.vendor || 'Unknown');
-    set('v-pdf', nav.pdfViewerEnabled ? 'Enabled' : 'Disabled');
-
-    let visible = 0;
-    for (const key of ROWS) {
-      const row = el.infoBlock.querySelector(`[data-row-id="${key}"]`);
-      if (!row) continue;
-      const on = !!s.rows[key];
-      row.style.display = on ? '' : 'none';
-      if (on) visible++;
-    }
-    if (!visible) el.infoBlock.style.display = 'none';
-    else if (s.blocks.info) el.infoBlock.style.display = '';
+  function initIp() {
+    if (ipInited) return;
+    ipInited = true;
+    el.ipCheckBtn = document.getElementById('ip-check-btn');
+    el.ipOutput   = document.getElementById('ip-output');
+    el.ipCheckBtn.addEventListener('click', fetchIp);
   }
+
+  async function fetchIp() {
+    el.ipCheckBtn.disabled    = true;
+    el.ipCheckBtn.textContent = '…';
+    el.ipOutput.innerHTML     = '';
+
+    try {
+      const res = await fetch('https://api.ipapi.is/');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+
+      el.ipOutput.innerHTML = colorizeJson({
+        ip:            d.ip,
+        country:       d.location?.country_code,
+        city:          d.location?.city,
+        timezone:      d.location?.timezone,
+        asn:           `AS${d.asn?.asn}`,
+        provider:      d.asn?.org,
+        type:          d.company?.type,
+        is_vpn:        d.is_vpn,
+        is_proxy:      d.is_proxy,
+        is_tor:        d.is_tor,
+        is_datacenter: d.is_datacenter
+      });
+
+    } catch (err) {
+      el.ipOutput.innerHTML = `<span class="j-warn">"${esc(err.message)}"</span>`;
+    } finally {
+      el.ipCheckBtn.disabled    = false;
+      el.ipCheckBtn.textContent = 'check';
+    }
+  }
+
+  function colorizeJson(obj) {
+    const vpnFields = new Set(['is_vpn', 'is_proxy', 'is_tor']);
+    const keys  = Object.keys(obj);
+    const lines = ['{'];
+
+    keys.forEach((key, i) => {
+      const val   = obj[key];
+      const comma = i < keys.length - 1 ? ',' : '';
+      const k     = `<span class="j-key">"${key}"</span>`;
+      let v;
+
+      if (typeof val === 'boolean') {
+        if (vpnFields.has(key))
+          v = `<span class="${val ? 'j-ok' : 'j-dim'}">${val}</span>`;
+        else if (key === 'is_datacenter')
+          v = `<span class="${val ? 'j-warn' : 'j-dim'}">${val}</span>`;
+        else
+          v = `<span class="j-dim">${val}</span>`;
+      } else if (val == null) {
+        v = `<span class="j-dim">null</span>`;
+      } else {
+        let cls = 'j-str';
+        if (key === 'type' && val === 'isp')                        cls = 'j-warn';
+        if (key === 'type' && (val === 'vpn' || val === 'hosting')) cls = 'j-ok';
+        v = `<span class="${cls}">"${esc(String(val))}"</span>`;
+      }
+
+      lines.push(`  ${k}: ${v}${comma}`);
+    });
+
+    lines.push('}');
+    return lines.join('\n');
+  }
+
 
   function focusSearch() {
     requestAnimationFrame(() => {
@@ -234,28 +261,6 @@
     });
   }
 
-  function dntEnabled() {
-    const n = (navigator.doNotTrack || '').toLowerCase();
-    const w = (window.doNotTrack || '').toLowerCase();
-    return n === '1' || n === 'yes' || w === '1' || w === 'yes';
-  }
-
-  function ua() {
-    const z = navigator.userAgent || '';
-    let b = 'Unknown', o = 'Unknown';
-    if (z.includes('Firefox')) b = 'Firefox';
-    else if (z.includes('Edg')) b = 'Edge';
-    else if (z.includes('OPR') || z.includes('Opera')) b = 'Opera';
-    else if (z.includes('Chrome')) b = 'Chrome / Chromium';
-    else if (z.includes('Safari')) b = 'Safari';
-    if (z.includes('Android')) o = 'Android';
-    else if (/iPhone|iPad|iPod/.test(z)) o = 'iOS';
-    else if (z.includes('Win')) o = 'Windows';
-    else if (z.includes('Mac')) o = 'macOS';
-    else if (z.includes('Linux')) o = 'Linux';
-    return `${b} on ${o}`;
-  }
-
   function normalizeUrl(v) {
     if (!v) return '';
     const raw = /^https?:\/\//i.test(v) ? v : `https://${v}`;
@@ -263,45 +268,32 @@
       const u = new URL(raw);
       if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
       return u.href;
-    } catch {
-      return '';
-    }
+    } catch { return ''; }
   }
 
   function hydrate() {
-    const raw = parse(localStorage.getItem(K.CFG)) || {};
+    const raw   = parse(localStorage.getItem(K.CFG)) || {};
     const links = parse(localStorage.getItem(K.LINKS));
     return {
-      theme: raw.theme || DEF.theme,
+      theme:  raw.theme  || DEF.theme,
       engine: raw.engine || DEF.engine,
       blocks: { ...DEF.blocks, ...(raw.blocks || {}) },
-      rows: { ...DEF.rows, ...(raw.rows || {}) },
-      links: Array.isArray(links) && links.length ? links : DEF_LINKS
+      links:  Array.isArray(links) && links.length ? links : DEF_LINKS
     };
   }
 
   function persist() {
-    localStorage.setItem(K.CFG, JSON.stringify({ theme: s.theme, engine: s.engine, blocks: s.blocks, rows: s.rows }));
+    localStorage.setItem(K.CFG, JSON.stringify({
+      theme:  s.theme,
+      engine: s.engine,
+      blocks: s.blocks
+    }));
     localStorage.setItem(K.LINKS, JSON.stringify(s.links));
   }
 
-  function qSet(sel, checked) {
-    const x = document.querySelector(sel);
-    if (x) x.checked = !!checked;
-  }
-
-  function set(id, val) {
-    const x = document.getElementById(id);
-    if (!x) return;
-    x.className = '';
-    x.textContent = val;
-  }
-
-  function state(id, val, cls) {
-    const x = document.getElementById(id);
-    if (!x) return;
-    x.className = cls;
-    x.textContent = val;
+  function setChecked(selector, checked) {
+    const node = document.querySelector(selector);
+    if (node) node.checked = !!checked;
   }
 
   function parse(v) {
@@ -309,7 +301,11 @@
   }
 
   function esc(v) {
-    return String(v).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+    return String(v)
+      .replaceAll('&', '&amp;')
+      .replaceAll('"', '&quot;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
   }
 
   function id() {
