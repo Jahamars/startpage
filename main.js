@@ -17,11 +17,9 @@
   };
 
   const DEF_LINKS = [
-    { id: id(), n: 'claude',      u: 'https://claude.ai/new',  e: 1 },
-    { id: id(), n: 'github',      u: 'https://github.com',      e: 1 },
-    { id: id(), n: 'reddit',      u: 'https://reddit.com',      e: 1 },
-    { id: id(), n: 'distrowatch', u: 'https://distrowatch.com', e: 1 },
-    { id: id(), n: 'x',           u: 'https://x.com',           e: 1 }
+    { id: id(), n: 'github   ',      u: 'https://github.com/jahamarsi',      e: 1 },
+    { id: id(), n: 'reddit   ',      u: 'https://reddit.com',      e: 1 },
+    { id: id(), n: 'blog    ', u: 'https://jahongir.ru', e: 1 }
   ];
 
   const s  = hydrate();
