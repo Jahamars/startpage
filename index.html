@@ -1,37 +1,82 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="gruvbox-dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>minimalism</title>
-    <link rel="stylesheet" href="./style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>ts</title>
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-    <main>
-        <h1>  </h1>
-        <div class="search-box">
-                    <span class="prompt">❯</span>
-                    <input type="text" placeholder="rm -rf " onkeypress="runSearch(event)">
-                </div>
-        <nav>
-            <ul>
-                <li><a href="https://claude.ai/new">claude</a></li>
-                <li><a href="https://github.com">github</a></li>
-                <li><a href="https://www.reddit.com">reddit</a></li>
-                <li><a href="https://distrowatch.com">distrowatch</a></li>
-                <li><a href="http://x.com/">x.com</a></li>
-            </ul>
-        </nav>
-    </main>
-    <script>
-            function runSearch(event) {
-                if (event.key === "Enter") {
-                    const query = event.target.value.trim();
-                    if (query) {
-                        window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
-                    }
-                }
-            }
-        </script>
+  <button id="settings-btn" aria-label="Settings" title="Settings">ss</button>
+
+  <aside id="settings-panel" class="hidden" aria-hidden="true">
+    <section class="group">
+      <h2>Theme</h2>
+      <label><input type="radio" name="theme" value="gruvbox-dark">Gruvbox Dark</label>
+      <label><input type="radio" name="theme" value="gruvbox-light">Gruvbox Light</label>
+      <label><input type="radio" name="theme" value="nord-dark">Nord Dark</label>
+      <label><input type="radio" name="theme" value="nord-light">Nord Light</label>
+    </section>
+
+    <section class="group">
+      <h2>Search</h2>
+      <label><input type="radio" name="engine" value="google">Google</label>
+      <label><input type="radio" name="engine" value="duckduckgo">DuckDuckGo</label>
+      <label><input type="radio" name="engine" value="yandex">Yandex</label>
+      <label><input type="radio" name="engine" value="bing">Bing</label>
+      <label><input type="radio" name="engine" value="brave">Brave</label>
+      <label><input type="radio" name="engine" value="startpage">Startpage</label>
+    </section>
+
+    <section class="group">
+      <h2>Blocks</h2>
+      <label><input type="checkbox" data-block="search">Search bar</label>
+      <label><input type="checkbox" data-block="links">Quick links</label>
+      <label><input type="checkbox" data-block="info">Info panel</label>
+    </section>
+
+    <section class="group">
+      <h2>Info rows</h2>
+      <label><input type="checkbox" data-row="lang">System Lang</label>
+      <label><input type="checkbox" data-row="tz">Local Timezone</label>
+      <label><input type="checkbox" data-row="ua">Browser / OS</label>
+      <label><input type="checkbox" data-row="dnt">Do Not Track</label>
+      <label><input type="checkbox" data-row="gpc">GPC</label>
+      <label><input type="checkbox" data-row="webrtc">WebRTC</label>
+    </section>
+
+    <section class="group">
+      <h2>Quick links</h2>
+      <div id="editor-list"></div>
+      <div class="add">
+        <input id="new-name" type="text" placeholder="Name">
+        <input id="new-url" type="text" placeholder="https://...">
+        <button id="add-link" type="button">Add</button>
+      </div>
+    </section>
+  </aside>
+
+  <main id="app">
+    <section id="search-block" class="search">
+      <span>❯</span>
+      <input id="search-input" type="text" placeholder="search..." autofocus>
+    </section>
+
+    <nav id="links-block">
+      <ul id="links-list"></ul>
+    </nav>
+
+    <section id="info-block" class="info-grid">
+      <article class="cell" data-row-id="lang"><small>System Lang</small><strong id="v-lang"></strong></article>
+      <article class="cell" data-row-id="tz"><small>Local Timezone</small><strong id="v-tz"></strong></article>
+      <article class="cell" data-row-id="ua"><small>Browser / OS</small><strong id="v-ua"></strong></article>
+      <article class="cell" data-row-id="dnt"><small>Do Not Track</small><strong id="v-dnt"></strong></article>
+      <article class="cell" data-row-id="gpc"><small>Global Privacy Control</small><strong id="v-gpc"></strong></article>
+      <article class="cell" data-row-id="webrtc"><small>WebRTC</small><strong id="v-webrtc"></strong></article>
+    </section>
+  </main>
+
+  <script src="./main.js"></script>
 </body>
 </html>
