@@ -17,7 +17,7 @@
   };
 
   const DEF_LINKS = [
-    { id: id(), n: 'github   ',      u: 'https://github.com/jahamarsi',      e: 1 },
+    { id: id(), n: 'github   ',      u: 'https://github.com/jahamars',      e: 1 },
     { id: id(), n: 'reddit   ',      u: 'https://reddit.com',      e: 1 },
     { id: id(), n: 'blog    ', u: 'https://jahongir.ru', e: 1 }
   ];
