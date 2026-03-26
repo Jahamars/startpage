@@ -5,19 +5,66 @@
 
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg);padding:24px;display:grid;place-items:center}
+body{
+  font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  background:var(--bg);color:var(--fg);
+  padding:24px;display:grid;place-items:center
+}
 
 #app{width:min(980px,100%);display:grid;gap:18px}
 
-.search{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+/* ── Search ── */
+.search{position:relative;display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
 .search span{color:var(--accent);font-weight:700}
 .search input{width:100%;border:0;background:transparent;color:var(--fg);outline:0;font-size:16px}
 .search input::placeholder{color:var(--dim)}
 
+/* ── Bookmark dropdown (performance tuned) ── */
+#bm-drop{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;
+  list-style:none;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:10px;
+
+  /* lighter than huge blur shadow */
+  box-shadow:0 8px 20px rgba(0,0,0,.25);
+
+  max-height:min(320px,50vh);
+  overflow-y:auto;
+  z-index:200;
+  padding:4px;
+
+  /* isolates repaint/layout */
+  contain:content;
+}
+
+.bm-item{
+  display:flex;align-items:center;gap:9px;
+  padding:7px 10px;border-radius:7px;cursor:pointer;
+  /* no transition to reduce jank on rapid mousemove */
+}
+.bm-item:hover,.bm-item.bm-active{background:var(--muted)}
+
+.bm-fav{width:14px;height:14px;flex-shrink:0;object-fit:contain}
+.bm-name{
+  font-size:13px;color:var(--fg);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  flex-shrink:0;max-width:42%
+}
+.bm-url{
+  font-size:11px;color:var(--dim);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  flex:1;min-width:0
+}
+.bm-hl{background:transparent;color:var(--accent);font-weight:700}
+
+/* ── Quick links ── */
 #links-list{list-style:none;display:flex;flex-wrap:wrap;gap:6px}
 #links-list a{font-size:13px;padding:4px 0;text-decoration:none;color:var(--dim);border-bottom:1px solid transparent}
 #links-list a:hover{color:var(--fg);border-bottom-color:var(--accent)}
 
+/* ── IP block ── */
 .ip-header{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
 .ip-title{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
 .ip-header button{border:1px solid var(--line);background:transparent;color:var(--accent);padding:3px 10px;border-radius:6px;cursor:pointer;font-size:12px;letter-spacing:.05em}
@@ -30,8 +77,15 @@ body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;backgr
 .j-warn{color:var(--warn)}
 .j-dim{color:var(--dim)}
 
+/* ── Settings ── */
 #settings-btn{position:fixed;top:12px;right:12px;width:40px;height:40px;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:10px;cursor:pointer}
-#settings-panel{position:fixed;top:58px;right:12px;width:min(420px,calc(100vw - 24px));max-height:calc(100vh - 70px);overflow:auto;padding:14px;border:1px solid var(--line);background:var(--surface);border-radius:12px;display:grid;gap:14px}
+#settings-panel{
+  position:fixed;top:58px;right:12px;
+  width:min(420px,calc(100vw - 24px));
+  max-height:calc(100vh - 70px);
+  overflow:auto;padding:14px;border:1px solid var(--line);
+  background:var(--surface);border-radius:12px;display:grid;gap:14px
+}
 .hidden{display:none!important}
 .group{display:grid;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--line)}
 .group:last-child{border-bottom:0;padding-bottom:0}
@@ -45,4 +99,4 @@ body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;backgr
 .e-row button,.add button{border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:7px 10px;border-radius:8px;cursor:pointer}
 .add{display:grid;grid-template-columns:1fr 1.5fr auto;gap:6px}
 
-@media (max-width:640px){body{padding:12px}}
+@media(max-width:640px){body{padding:12px}}

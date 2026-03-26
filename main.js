@@ -1,51 +1,355 @@
 (() => {
-  const K = { CFG: 'sp_cfg_v8', LINKS: 'sp_links_v4' };
+  const K = { CFG: 'sp_cfg_v8', LINKS: 'sp_links_v4', BM_STATS: 'sp_bm_stats_v1' };
 
   const ENGINES = {
-    google:     'https://www.google.com/search?q=',
+    google: 'https://www.google.com/search?q=',
     duckduckgo: 'https://duckduckgo.com/?q=',
-    yandex:     'https://yandex.com/search/?text=',
-    bing:       'https://www.bing.com/search?q=',
-    brave:      'https://search.brave.com/search?q=',
-    startpage:  'https://www.startpage.com/do/search?q='
+    yandex: 'https://yandex.com/search/?text=',
+    bing: 'https://www.bing.com/search?q=',
+    brave: 'https://search.brave.com/search?q=',
+    startpage: 'https://www.startpage.com/do/search?q='
   };
 
   const DEF = {
-    theme:  'gruvbox-dark',
+    theme: 'gruvbox-dark',
     engine: 'google',
     blocks: { search: true, links: true, ip: true }
   };
 
   const DEF_LINKS = [
-    { id: id(), n: 'github   ',      u: 'https://github.com/jahamars',      e: 1 },
-    { id: id(), n: 'reddit   ',      u: 'https://reddit.com',      e: 1 },
-    { id: id(), n: 'blog    ', u: 'https://jahongir.ru', e: 1 }
+    { id: id(), n: 'github', u: 'https://github.com/jahamars', e: 1 },
+    { id: id(), n: 'reddit', u: 'https://reddit.com', e: 1 },
+    { id: id(), n: 'blog', u: 'https://jahongir.ru', e: 1 }
   ];
 
-  const s  = hydrate();
+  const s = hydrate();
   const el = {};
-  let   ipInited = false;
+  let ipInited = false;
+
+  // bookmarks
+  let allBookmarks = [];
+  let dropResults = [];
+  let dropIdx = -1;
+  let bmStats = parse(localStorage.getItem(K.BM_STATS)) || {};
+  let searchTimer = null;
 
   document.addEventListener('DOMContentLoaded', () => {
     mapEls();
+    buildDrop();
     bind();
     renderAll();
-    if (s.blocks.search) focusSearch();
+    loadBookmarks();
     if (s.blocks.ip) initIp();
+    focusSearch();
   });
 
+  function loadBookmarks() {
+    if (!chrome?.bookmarks) return;
+    chrome.bookmarks.getTree(tree => {
+      allBookmarks = [];
+      flattenTree(tree);
+    });
+  }
+
+  function flattenTree(nodes) {
+    for (const node of nodes) {
+      if (node.url) {
+        const u = node.url;
+        const n = (node.title || node.url).trim();
+        let host = '';
+        let path = '';
+        try {
+          const x = new URL(u);
+          host = x.hostname.replace(/^www\./, '');
+          path = x.pathname.replace(/\/+$/, '');
+        } catch {}
+        allBookmarks.push({
+          n, u, host, path,
+          _nl: n.toLowerCase(),
+          _ul: u.toLowerCase(),
+          _hl: host.toLowerCase(),
+          _pl: path.toLowerCase()
+        });
+      }
+      if (node.children) flattenTree(node.children);
+    }
+  }
+
+  function buildDrop() {
+    const drop = document.createElement('ul');
+    drop.id = 'bm-drop';
+    drop.className = 'hidden';
+    el.searchBlock.appendChild(drop);
+    el.drop = drop;
+  }
+
+  function renderDrop(query) {
+    const q = query.trim();
+    if (!q || !allBookmarks.length) return closeDrop();
+
+    const variants = buildQueryVariants(q);
+    const scored = [];
+
+    for (const bm of allBookmarks) {
+      const r = scoreBookmark(bm, variants);
+      if (!r) continue;
+      scored.push({ bm, ...r });
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+    const top = scored.slice(0, 8);
+    dropResults = top.map(x => x.bm);
+    if (!top.length) return closeDrop();
+
+    const frag = document.createDocumentFragment();
+    top.forEach(({ bm, titleRanges, urlRanges }, i) => {
+      const li = document.createElement('li');
+      li.className = 'bm-item';
+
+      const fav = document.createElement('img');
+      fav.className = 'bm-fav';
+      try { fav.src = `${new URL(bm.u).origin}/favicon.ico`; } catch {}
+      fav.onerror = () => { fav.style.visibility = 'hidden'; };
+
+      const name = document.createElement('span');
+      name.className = 'bm-name';
+      name.innerHTML = highlightRanges(bm.n, titleRanges);
+
+      const url = document.createElement('span');
+      url.className = 'bm-url';
+      const shortUrl = bm.u.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      url.innerHTML = highlightRanges(shortUrl, urlRanges);
+
+      li.append(fav, name, url);
+      li.addEventListener('mousedown', e => {
+        e.preventDefault();
+        navigate(bm.u);
+      });
+      li.addEventListener('mouseenter', () => {
+        dropIdx = i;
+        updateDropActive();
+      });
+
+      frag.appendChild(li);
+    });
+
+    el.drop.replaceChildren(frag);
+    el.drop.classList.remove('hidden');
+    dropIdx = -1;
+    updateDropActive();
+  }
+
+  function scoreBookmark(bm, variants) {
+    const fields = [
+      { key: 'title', raw: bm.n, text: bm._nl, w: 1.25 },
+      { key: 'host', raw: bm.host, text: bm._hl, w: 1.35 },
+      { key: 'path', raw: bm.path, text: bm._pl, w: 1.00 },
+      { key: 'url', raw: bm.u, text: bm._ul, w: 0.90 }
+    ];
+
+    let bestScore = -Infinity;
+    let best = null;
+
+    for (const q of variants) {
+      const ql = q.toLowerCase();
+      for (const f of fields) {
+        const m = matchSmart(f.text, ql);
+        if (!m) continue;
+
+        const st = bmStats[bm.u] || { hits: 0, last: 0 };
+        const hitsBoost = Math.min(4, st.hits * 0.35);
+        const recencyBoost = st.last
+          ? Math.max(0, 2 - (Date.now() - st.last) / (1000 * 60 * 60 * 24 * 7))
+          : 0;
+
+        const total = m.score * f.w + hitsBoost + recencyBoost;
+        if (total > bestScore) {
+          bestScore = total;
+          best = {
+            score: total,
+            titleRanges: f.key === 'title' ? m.ranges : [],
+            urlRanges: (f.key === 'url' || f.key === 'host' || f.key === 'path') ? m.ranges : []
+          };
+        }
+      }
+    }
+
+    return bestScore > 0 ? best : null;
+  }
+
+  function matchSmart(t, q) {
+    if (!t || !q) return null;
+
+    const at = t.indexOf(q);
+    if (at >= 0) {
+      return {
+        score: 14 + Math.min(8, q.length * 0.8) - at * 0.02,
+        ranges: [[at, at + q.length]]
+      };
+    }
+
+    const qt = q.split(/\s+/).filter(Boolean);
+    if (qt.length > 1) {
+      let ssum = 0;
+      const ranges = [];
+      for (const token of qt) {
+        const i = t.indexOf(token);
+        if (i < 0) return null;
+        ssum += 5 + token.length * 0.5;
+        ranges.push([i, i + token.length]);
+      }
+      return { score: ssum, ranges };
+    }
+
+    const fz = fuzzySubseq(t, q);
+    if (fz) return fz;
+
+    // typo-match только для коротких полей, чтобы не лагало
+    if (q.length >= 4 && q.length <= 14 && t.length <= 120) {
+      const dist = editDistanceWindowed(t, q, 2);
+      if (dist <= 2) {
+        return { score: 6 - dist * 1.5 + q.length * 0.25, ranges: [] };
+      }
+    }
+
+    return null;
+  }
+
+  function fuzzySubseq(t, q) {
+    const idx = [];
+    let i = 0, j = 0, score = 0, streak = 0;
+
+    while (i < t.length && j < q.length) {
+      if (t[i] === q[j]) {
+        idx.push(i);
+        j++;
+        streak++;
+        score += 1.2 + streak * 0.45;
+      } else {
+        streak = 0;
+      }
+      i++;
+    }
+
+    if (j < q.length) return null;
+
+    const span = idx[idx.length - 1] - idx[0] + 1;
+    score += 4 - span * 0.03;
+    if (idx[0] === 0) score += 2;
+
+    return { score, ranges: idx.map(x => [x, x + 1]) };
+  }
+
+  function editDistanceWindowed(text, q, maxD = 2) {
+    if (text.length < q.length) return 99;
+    let best = 99;
+    const L = q.length;
+    const limitWindows = Math.min(80, text.length - L + 1);
+
+    for (let i = 0; i < limitWindows; i++) {
+      const w = text.slice(i, i + L);
+      const d = lev(w, q, maxD);
+      if (d < best) best = d;
+      if (best === 0) return 0;
+    }
+    return best;
+  }
+
+  function lev(a, b, limit = 2) {
+    const n = a.length, m = b.length;
+    if (Math.abs(n - m) > limit) return limit + 1;
+
+    let prev = Array.from({ length: m + 1 }, (_, i) => i);
+
+    for (let i = 1; i <= n; i++) {
+      const cur = [i];
+      let minInRow = cur[0];
+
+      for (let j = 1; j <= m; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+        if (cur[j] < minInRow) minInRow = cur[j];
+      }
+
+      if (minInRow > limit) return limit + 1;
+      prev = cur;
+    }
+
+    return prev[m];
+  }
+
+  function buildQueryVariants(q) {
+    const set = new Set([q]);
+    const swapped = swapKeyboardLayout(q);
+    if (swapped && swapped !== q) set.add(swapped);
+    return [...set];
+  }
+
+  function swapKeyboardLayout(s0) {
+    const en = '`qwertyuiop[]asdfghjkl;\'zxcvbnm,./';
+    const ru = 'ёйцукенгшщзхъфывапролджэячсмитьбю.';
+    const map = {};
+    for (let i = 0; i < en.length; i++) {
+      map[en[i]] = ru[i];
+      map[ru[i]] = en[i];
+    }
+    return [...s0.toLowerCase()].map(ch => map[ch] || ch).join('');
+  }
+
+  function highlightRanges(str, ranges) {
+    if (!ranges?.length) return esc(str);
+    const marks = Array(str.length).fill(false);
+
+    for (const [a, b] of ranges) {
+      for (let i = a; i < b && i < str.length; i++) marks[i] = true;
+    }
+
+    let out = '';
+    for (let i = 0; i < str.length; i++) {
+      const ch = esc(str[i]);
+      out += marks[i] ? `<mark class="bm-hl">${ch}</mark>` : ch;
+    }
+    return out;
+  }
+
+  function closeDrop() {
+    el.drop.classList.add('hidden');
+    el.drop.innerHTML = '';
+    dropResults = [];
+    dropIdx = -1;
+  }
+
+  function updateDropActive() {
+    el.drop.querySelectorAll('.bm-item').forEach((item, i) => {
+      item.classList.toggle('bm-active', i === dropIdx);
+    });
+    el.drop.querySelector('.bm-active')?.scrollIntoView({ block: 'nearest' });
+  }
+
+  function navigate(url) {
+    const st = bmStats[url] || { hits: 0, last: 0 };
+    st.hits += 1;
+    st.last = Date.now();
+    bmStats[url] = st;
+    localStorage.setItem(K.BM_STATS, JSON.stringify(bmStats));
+
+    closeDrop();
+    el.searchInput.value = '';
+    window.location.href = url;
+  }
+
   function mapEls() {
-    el.btn         = document.getElementById('settings-btn');
-    el.panel       = document.getElementById('settings-panel');
+    el.btn = document.getElementById('settings-btn');
+    el.panel = document.getElementById('settings-panel');
     el.searchBlock = document.getElementById('search-block');
     el.searchInput = document.getElementById('search-input');
-    el.linksBlock  = document.getElementById('links-block');
-    el.linksList   = document.getElementById('links-list');
-    el.ipBlock     = document.getElementById('ip-block');
-    el.editorList  = document.getElementById('editor-list');
-    el.newName     = document.getElementById('new-name');
-    el.newUrl      = document.getElementById('new-url');
-    el.addBtn      = document.getElementById('add-link');
+    el.linksBlock = document.getElementById('links-block');
+    el.linksList = document.getElementById('links-list');
+    el.ipBlock = document.getElementById('ip-block');
+    el.editorList = document.getElementById('editor-list');
+    el.newName = document.getElementById('new-name');
+    el.newUrl = document.getElementById('new-url');
+    el.addBtn = document.getElementById('add-link');
   }
 
   function bind() {
@@ -55,15 +359,83 @@
       if (el.panel.contains(e.target) || el.btn.contains(e.target)) return;
       el.panel.classList.add('hidden');
     });
-
     el.panel.addEventListener('change', onPanelChange);
     el.panel.addEventListener('click', onPanelClick);
 
+    // debounce input (фикс лагов)
+    el.searchInput.addEventListener('input', () => {
+      dropIdx = -1;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => renderDrop(el.searchInput.value), 40);
+    });
+
     el.searchInput.addEventListener('keydown', e => {
-      if (e.key !== 'Enter') return;
-      const q = el.searchInput.value.trim();
-      if (!q) return;
-      window.open((ENGINES[s.engine] || ENGINES.google) + encodeURIComponent(q), '_blank', 'noopener');
+      const len = dropResults.length;
+      const open = !el.drop.classList.contains('hidden');
+
+      switch (e.key) {
+        case 'ArrowDown':
+          if (!open) break;
+          e.preventDefault();
+          dropIdx = len ? (dropIdx + 1) % len : 0;
+          updateDropActive();
+          break;
+
+        case 'ArrowUp':
+          if (!open) break;
+          e.preventDefault();
+          dropIdx = len ? (dropIdx <= 0 ? len - 1 : dropIdx - 1) : 0;
+          updateDropActive();
+          break;
+
+        case 'Escape':
+          e.preventDefault();
+          if (open) {
+            closeDrop();
+          } else {
+            el.searchInput.value = '';
+            // ВАЖНО: не blur(), чтобы не уходить фокусом в omnibox
+            focusSearch();
+          }
+          break;
+
+        case 'Enter': {
+          e.preventDefault();
+
+          if (dropIdx >= 0 && dropResults[dropIdx]) {
+            navigate(dropResults[dropIdx].u);
+            break;
+          }
+
+          if (open && dropResults[0]) {
+            navigate(dropResults[0].u);
+            break;
+          }
+
+          const q = el.searchInput.value.trim();
+          if (!q) break;
+
+          closeDrop();
+          el.searchInput.value = '';
+          window.location.href = (ENGINES[s.engine] || ENGINES.google) + encodeURIComponent(q);
+          break;
+        }
+      }
+    });
+
+    // "/" фокусит поиск из любого места страницы
+    document.addEventListener('keydown', e => {
+      if (e.key !== '/') return;
+      const t = e.target;
+      const typing = t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t?.isContentEditable;
+      if (typing) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      e.preventDefault();
+      focusSearch();
+    });
+
+    document.addEventListener('mousedown', e => {
+      if (!el.searchBlock.contains(e.target)) closeDrop();
     });
 
     el.addBtn.addEventListener('click', addLink);
@@ -74,10 +446,10 @@
     const t = e.target;
     if (!(t instanceof HTMLInputElement)) return;
 
-    if      (t.name === 'theme')  s.theme = t.value;
+    if (t.name === 'theme') s.theme = t.value;
     else if (t.name === 'engine') s.engine = t.value;
-    else if (t.dataset.block)     s.blocks[t.dataset.block] = t.checked;
-    else if (t.dataset.eid)       updateLinkField(t);
+    else if (t.dataset.block) s.blocks[t.dataset.block] = t.checked;
+    else if (t.dataset.eid) updateLinkField(t);
 
     persist();
     renderAll();
@@ -99,7 +471,7 @@
     if (!u) return;
     s.links.push({ id: id(), n, u, e: 1 });
     el.newName.value = '';
-    el.newUrl.value  = '';
+    el.newUrl.value = '';
     persist();
     renderLinks();
     renderEditor();
@@ -127,17 +499,17 @@
   }
 
   function syncControls() {
-    setChecked(`input[name="theme"][value="${s.theme}"]`,   true);
+    setChecked(`input[name="theme"][value="${s.theme}"]`, true);
     setChecked(`input[name="engine"][value="${s.engine}"]`, true);
     setChecked('input[data-block="search"]', !!s.blocks.search);
-    setChecked('input[data-block="links"]',  !!s.blocks.links);
-    setChecked('input[data-block="ip"]',     !!s.blocks.ip);
+    setChecked('input[data-block="links"]', !!s.blocks.links);
+    setChecked('input[data-block="ip"]', !!s.blocks.ip);
   }
 
   function applyBlocks() {
     el.searchBlock.style.display = s.blocks.search ? '' : 'none';
-    el.linksBlock.style.display  = s.blocks.links  ? '' : 'none';
-    el.ipBlock.style.display     = s.blocks.ip     ? '' : 'none';
+    el.linksBlock.style.display = s.blocks.links ? '' : 'none';
+    el.ipBlock.style.display = s.blocks.ip ? '' : 'none';
   }
 
   function renderLinks() {
@@ -150,10 +522,9 @@
     const frag = document.createDocumentFragment();
     for (const x of arr) {
       const li = document.createElement('li');
-      const a  = document.createElement('a');
-      a.href        = x.u;
+      const a = document.createElement('a');
+      a.href = x.u;
       a.textContent = x.n;
-      a.rel         = 'noopener noreferrer';
       li.appendChild(a);
       frag.appendChild(li);
     }
@@ -175,88 +546,74 @@
     el.editorList.replaceChildren(frag);
   }
 
-
   function initIp() {
     if (ipInited) return;
     ipInited = true;
     el.ipCheckBtn = document.getElementById('ip-check-btn');
-    el.ipOutput   = document.getElementById('ip-output');
+    el.ipOutput = document.getElementById('ip-output');
     el.ipCheckBtn.addEventListener('click', fetchIp);
   }
 
   async function fetchIp() {
-    el.ipCheckBtn.disabled    = true;
+    el.ipCheckBtn.disabled = true;
     el.ipCheckBtn.textContent = '…';
-    el.ipOutput.innerHTML     = '';
-
+    el.ipOutput.innerHTML = '';
     try {
       const res = await fetch('https://api.ipapi.is/');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const d = await res.json();
-
       el.ipOutput.innerHTML = colorizeJson({
-        ip:            d.ip,
-        country:       d.location?.country_code,
-        city:          d.location?.city,
-        timezone:      d.location?.timezone,
-        asn:           `AS${d.asn?.asn}`,
-        provider:      d.asn?.org,
-        type:          d.company?.type,
-        is_vpn:        d.is_vpn,
-        is_proxy:      d.is_proxy,
-        is_tor:        d.is_tor,
+        ip: d.ip,
+        country: d.location?.country_code,
+        city: d.location?.city,
+        timezone: d.location?.timezone,
+        asn: `AS${d.asn?.asn}`,
+        provider: d.asn?.org,
+        type: d.company?.type,
+        is_vpn: d.is_vpn,
+        is_proxy: d.is_proxy,
+        is_tor: d.is_tor,
         is_datacenter: d.is_datacenter
       });
-
     } catch (err) {
       el.ipOutput.innerHTML = `<span class="j-warn">"${esc(err.message)}"</span>`;
     } finally {
-      el.ipCheckBtn.disabled    = false;
+      el.ipCheckBtn.disabled = false;
       el.ipCheckBtn.textContent = 'check';
     }
   }
 
   function colorizeJson(obj) {
-    const vpnFields = new Set(['is_vpn', 'is_proxy', 'is_tor']);
-    const keys  = Object.keys(obj);
+    const vpn = new Set(['is_vpn', 'is_proxy', 'is_tor']);
+    const keys = Object.keys(obj);
     const lines = ['{'];
-
     keys.forEach((key, i) => {
-      const val   = obj[key];
-      const comma = i < keys.length - 1 ? ',' : '';
-      const k     = `<span class="j-key">"${key}"</span>`;
+      const val = obj[key], comma = i < keys.length - 1 ? ',' : '';
+      const k = `<span class="j-key">"${key}"</span>`;
       let v;
-
       if (typeof val === 'boolean') {
-        if (vpnFields.has(key))
-          v = `<span class="${val ? 'j-ok' : 'j-dim'}">${val}</span>`;
-        else if (key === 'is_datacenter')
-          v = `<span class="${val ? 'j-warn' : 'j-dim'}">${val}</span>`;
-        else
-          v = `<span class="j-dim">${val}</span>`;
+        if (vpn.has(key)) v = `<span class="${val ? 'j-ok' : 'j-dim'}">${val}</span>`;
+        else if (key === 'is_datacenter') v = `<span class="${val ? 'j-warn' : 'j-dim'}">${val}</span>`;
+        else v = `<span class="j-dim">${val}</span>`;
       } else if (val == null) {
         v = `<span class="j-dim">null</span>`;
       } else {
         let cls = 'j-str';
-        if (key === 'type' && val === 'isp')                        cls = 'j-warn';
+        if (key === 'type' && val === 'isp') cls = 'j-warn';
         if (key === 'type' && (val === 'vpn' || val === 'hosting')) cls = 'j-ok';
         v = `<span class="${cls}">"${esc(String(val))}"</span>`;
       }
-
       lines.push(`  ${k}: ${v}${comma}`);
     });
-
     lines.push('}');
     return lines.join('\n');
   }
 
-
   function focusSearch() {
-    requestAnimationFrame(() => {
-      if (!s.blocks.search) return;
-      el.searchInput.focus({ preventScroll: true });
-      el.searchInput.select();
-    });
+    if (!s.blocks.search) return;
+    el.searchInput.focus({ preventScroll: true });
+    el.searchInput.setSelectionRange(el.searchInput.value.length, el.searchInput.value.length);
+    requestAnimationFrame(() => el.searchInput.focus({ preventScroll: true }));
   }
 
   function normalizeUrl(v) {
@@ -270,28 +627,24 @@
   }
 
   function hydrate() {
-    const raw   = parse(localStorage.getItem(K.CFG)) || {};
+    const raw = parse(localStorage.getItem(K.CFG)) || {};
     const links = parse(localStorage.getItem(K.LINKS));
     return {
-      theme:  raw.theme  || DEF.theme,
+      theme: raw.theme || DEF.theme,
       engine: raw.engine || DEF.engine,
       blocks: { ...DEF.blocks, ...(raw.blocks || {}) },
-      links:  Array.isArray(links) && links.length ? links : DEF_LINKS
+      links: Array.isArray(links) && links.length ? links : DEF_LINKS
     };
   }
 
   function persist() {
-    localStorage.setItem(K.CFG, JSON.stringify({
-      theme:  s.theme,
-      engine: s.engine,
-      blocks: s.blocks
-    }));
+    localStorage.setItem(K.CFG, JSON.stringify({ theme: s.theme, engine: s.engine, blocks: s.blocks }));
     localStorage.setItem(K.LINKS, JSON.stringify(s.links));
   }
 
-  function setChecked(selector, checked) {
-    const node = document.querySelector(selector);
-    if (node) node.checked = !!checked;
+  function setChecked(sel, val) {
+    const n = document.querySelector(sel);
+    if (n) n.checked = !!val;
   }
 
   function parse(v) {
@@ -306,7 +659,5 @@
       .replaceAll('>', '&gt;');
   }
 
-  function id() {
-    return Math.random().toString(36).slice(2, 10);
-  }
+  function id() { return Math.random().toString(36).slice(2, 10); }
 })();

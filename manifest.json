@@ -1,11 +1,14 @@
 {
   "manifest_version": 3,
   "name": "ts",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "tech startpage",
   "chrome_url_overrides": {
     "newtab": "index.html"
   },
+  "permissions": [
+    "bookmarks"
+  ],
   "host_permissions": [
     "https://api.ipapi.is/"
   ]
