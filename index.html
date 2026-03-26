@@ -13,10 +13,10 @@
   <aside id="settings-panel" class="hidden">
     <section class="group">
       <h2>Theme</h2>
-      <label><input type="radio" name="theme" value="gruvbox-dark">gruvbox Dark</label>
-      <label><input type="radio" name="theme" value="gruvbox-light">gruvbox Light</label>
-      <label><input type="radio" name="theme" value="nord-dark">nord Dark</label>
-      <label><input type="radio" name="theme" value="nord-light">nord Light</label>
+      <label><input type="radio" name="theme" value="gruvbox-dark">gruvbox dark</label>
+      <label><input type="radio" name="theme" value="gruvbox-light">gruvbox light</label>
+      <label><input type="radio" name="theme" value="nord-dark">nord dark</label>
+      <label><input type="radio" name="theme" value="nord-light">nord light</label>
     </section>
 
     <section class="group">
@@ -50,7 +50,16 @@
   <main id="app">
     <section id="search-block" class="search">
       <span>❯</span>
-      <input id="search-input" type="text" placeholder="search..." autofocus>
+      <input
+        id="search-input"
+        type="text"
+        placeholder="search..."
+        autofocus
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded="false"
+        aria-controls="bm-drop"
+      >
     </section>
 
     <nav id="links-block">
@@ -60,7 +69,7 @@
     <section id="ip-block">
       <div class="ip-header">
         <span class="ip-title">ip info</span>
-        <button id="ip-check-btn">check</button>
+        <button id="ip-check-btn" type="button">check</button>
       </div>
       <pre id="ip-output" class="ip-output"></pre>
     </section>
