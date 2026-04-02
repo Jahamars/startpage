@@ -106,7 +106,7 @@
           return;
 
         case 'Tab':
-          if (!hasResults) return; 
+          if (!hasResults) return;
           e.preventDefault();
           selectWithTab(e.shiftKey);
           return;
@@ -261,16 +261,37 @@
     el.linksList.replaceChildren(frag);
   }
 
+  // FIX 1: renderEditor — заменяем innerHTML на createElement
   function renderEditor() {
     const frag = document.createDocumentFragment();
     for (const x of s.links) {
       const row = document.createElement('div');
       row.className = 'e-row';
-      row.innerHTML =
-        `<input type="checkbox" data-eid="${x.id}" data-f="e" ${x.e ? 'checked' : ''}>` +
-        `<input type="text" data-eid="${x.id}" data-f="n" value="${esc(x.n)}">` +
-        `<input type="text" data-eid="${x.id}" data-f="u" value="${esc(x.u)}">` +
-        `<button type="button" data-del="${x.id}">✕</button>`;
+
+      const chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.dataset.eid = x.id;
+      chk.dataset.f = 'e';
+      chk.checked = !!x.e;
+
+      const nameIn = document.createElement('input');
+      nameIn.type = 'text';
+      nameIn.dataset.eid = x.id;
+      nameIn.dataset.f = 'n';
+      nameIn.value = x.n;
+
+      const urlIn = document.createElement('input');
+      urlIn.type = 'text';
+      urlIn.dataset.eid = x.id;
+      urlIn.dataset.f = 'u';
+      urlIn.value = x.u;
+
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.dataset.del = x.id;
+      del.textContent = '✕';
+
+      row.append(chk, nameIn, urlIn, del);
       frag.appendChild(row);
     }
     el.editorList.replaceChildren(frag);
@@ -343,17 +364,18 @@
       fav.className = 'bm-fav';
       fav.decoding = 'async';
       fav.loading = 'lazy';
-      fav.src = `chrome://favicon/size/16@1x/${bm.u}`;
+      fav.src = `https://www.google.com/s2/favicons?sz=16&domain_url=${encodeURIComponent(bm.u)}`;
       fav.onerror = () => { fav.style.visibility = 'hidden'; };
 
+      // FIX 2: replaceChildren вместо innerHTML
       const name = document.createElement('span');
       name.className = 'bm-name';
-      name.innerHTML = highlightRanges(bm.n, titleRanges);
+      name.replaceChildren(highlightRanges(bm.n, titleRanges));
 
       const url = document.createElement('span');
       url.className = 'bm-url';
       const shortUrl = bm.u.replace(/^https?:\/\//, '').replace(/\/$/, '');
-      url.innerHTML = highlightRanges(shortUrl, urlRanges);
+      url.replaceChildren(highlightRanges(shortUrl, urlRanges));
 
       li.append(fav, name, url);
 
@@ -364,7 +386,7 @@
 
       li.addEventListener('mouseenter', () => {
         dropIdx = i;
-        explicitSelection = false; 
+        explicitSelection = false;
         updateDropActive();
       });
 
@@ -379,7 +401,7 @@
 
   function closeDrop() {
     el.drop.classList.add('hidden');
-    el.drop.innerHTML = '';
+    el.drop.replaceChildren();
     dropResults = [];
     dropIdx = -1;
     explicitSelection = false;
@@ -610,19 +632,43 @@
     return [...s0.toLowerCase()].map(ch => map[ch] || ch).join('');
   }
 
+  // FIX 2: highlightRanges возвращает DocumentFragment вместо HTML-строки
   function highlightRanges(str, ranges) {
-    if (!ranges?.length) return esc(str);
+    const frag = document.createDocumentFragment();
+
+    if (!ranges?.length) {
+      frag.appendChild(document.createTextNode(str));
+      return frag;
+    }
 
     const marks = Array(str.length).fill(false);
     for (const [a, b] of ranges) {
       for (let i = a; i < b && i < str.length; i++) marks[i] = true;
     }
 
-    let out = '';
+    let buf = '';
+    let inMark = false;
+
+    const flush = (marked) => {
+      if (!buf) return;
+      if (marked) {
+        const m = document.createElement('mark');
+        m.className = 'bm-hl';
+        m.textContent = buf;
+        frag.appendChild(m);
+      } else {
+        frag.appendChild(document.createTextNode(buf));
+      }
+      buf = '';
+    };
+
     for (let i = 0; i < str.length; i++) {
-      out += marks[i] ? `<mark class="bm-hl">${esc(str[i])}</mark>` : esc(str[i]);
+      if (marks[i] !== inMark) { flush(inMark); inMark = marks[i]; }
+      buf += str[i];
     }
-    return out;
+    flush(inMark);
+
+    return frag;
   }
 
   function initIp() {
@@ -633,17 +679,18 @@
     el.ipCheckBtn.addEventListener('click', fetchIp);
   }
 
+  // FIX 3: fetchIp — replaceChildren вместо innerHTML
   async function fetchIp() {
     el.ipCheckBtn.disabled = true;
     el.ipCheckBtn.textContent = '…';
-    el.ipOutput.innerHTML = '';
+    el.ipOutput.replaceChildren();
 
     try {
       const res = await fetch('https://api.ipapi.is/');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const d = await res.json();
 
-      el.ipOutput.innerHTML = colorizeJson({
+      el.ipOutput.replaceChildren(colorizeJson({
         ip: d.ip,
         country: d.location?.country_code,
         city: d.location?.city,
@@ -655,44 +702,62 @@
         is_proxy: d.is_proxy,
         is_tor: d.is_tor,
         is_datacenter: d.is_datacenter
-      });
+      }));
     } catch (err) {
-      el.ipOutput.innerHTML = `<span class="j-warn">"${esc(err.message)}"</span>`;
+      const errSpan = document.createElement('span');
+      errSpan.className = 'j-warn';
+      errSpan.textContent = `"${err.message}"`;
+      el.ipOutput.replaceChildren(errSpan);
     } finally {
       el.ipCheckBtn.disabled = false;
       el.ipCheckBtn.textContent = 'check';
     }
   }
 
+  // FIX 3: colorizeJson возвращает DocumentFragment вместо HTML-строки
   function colorizeJson(obj) {
     const vpn = new Set(['is_vpn', 'is_proxy', 'is_tor']);
     const keys = Object.keys(obj);
-    const lines = ['{'];
+    const frag = document.createDocumentFragment();
+
+    const span = (cls, text) => {
+      const s = document.createElement('span');
+      s.className = cls;
+      s.textContent = text;
+      return s;
+    };
+
+    frag.appendChild(document.createTextNode('{\n'));
 
     keys.forEach((key, i) => {
       const val = obj[key];
       const comma = i < keys.length - 1 ? ',' : '';
-      const k = `<span class="j-key">"${key}"</span>`;
-      let v;
+
+      frag.appendChild(document.createTextNode('  '));
+      frag.appendChild(span('j-key', `"${key}"`));
+      frag.appendChild(document.createTextNode(': '));
 
       if (typeof val === 'boolean') {
-        if (vpn.has(key)) v = `<span class="${val ? 'j-ok' : 'j-dim'}">${val}</span>`;
-        else if (key === 'is_datacenter') v = `<span class="${val ? 'j-warn' : 'j-dim'}">${val}</span>`;
-        else v = `<span class="j-dim">${val}</span>`;
+        const cls = vpn.has(key)
+          ? (val ? 'j-ok' : 'j-dim')
+          : key === 'is_datacenter'
+            ? (val ? 'j-warn' : 'j-dim')
+            : 'j-dim';
+        frag.appendChild(span(cls, String(val)));
       } else if (val == null) {
-        v = `<span class="j-dim">null</span>`;
+        frag.appendChild(span('j-dim', 'null'));
       } else {
         let cls = 'j-str';
         if (key === 'type' && val === 'isp') cls = 'j-warn';
         if (key === 'type' && (val === 'vpn' || val === 'hosting')) cls = 'j-ok';
-        v = `<span class="${cls}">"${esc(String(val))}"</span>`;
+        frag.appendChild(span(cls, `"${String(val)}"`));
       }
 
-      lines.push(`  ${k}: ${v}${comma}`);
+      frag.appendChild(document.createTextNode(comma + '\n'));
     });
 
-    lines.push('}');
-    return lines.join('\n');
+    frag.appendChild(document.createTextNode('}'));
+    return frag;
   }
 
   function focusSearch() {
@@ -745,15 +810,8 @@
     catch { return null; }
   }
 
-  function esc(v) {
-    return String(v)
-      .replaceAll('&', '&amp;')
-      .replaceAll('"', '&quot;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;');
-  }
-
   function id() {
     return Math.random().toString(36).slice(2, 10);
   }
 })();
+
